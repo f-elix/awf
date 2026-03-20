@@ -1,8 +1,12 @@
 import { spawn } from "node:child_process";
+import { homedir } from "node:os";
 import { createInterface } from "node:readline";
+import { join, resolve } from "node:path";
 
 import { buildAgentPrompt } from "./prompt-assembly.js";
 import { assertWorkflowPreflight } from "./preflight.js";
+import { awfPackageRootFromThisModule } from "./skills-discovery.js";
+import { formatSkillsInstallPreflightMessage, installBundledSkills } from "./skills-install.js";
 import {
   loadWorkflowContract,
   workflowRootFromCwd,
@@ -36,17 +40,60 @@ const HELP = `awf — agentic workflow CLI
 
 Usage:
   awf run [maxIterations]
+  awf skills install
 
   maxIterations  Optional positive integer (default: ${DEFAULT_MAX_ITERATIONS})
 
-The loop invokes Cursor agent with --force so the agent may edit files in your
-working tree; review changes before committing.
+awf run: repeatedly invokes Cursor agent with --force so the agent may edit files
+in your working tree; review changes before committing. Workflow layout is defined
+only in the shipped spec/workflow.json (single contract).
 
-Workflow layout is defined only in the shipped spec/workflow.json (single contract).
+awf skills install: copies every skill from this package's skills/ tree into
+~/.agents/skills/awf-<name>/ (see awf skills --help).
+`;
+
+const SKILLS_HELP = `awf skills — install bundled agent skills
+
+Usage:
+  awf skills install
+
+Copies each immediate subdirectory of this package's skills/ folder to
+~/.agents/skills/awf-<dirname>/, replacing any previous awf-<dirname> tree.
+Creates ~/.agents and ~/.agents/skills if needed. Other folders under
+~/.agents/skills are left unchanged.
+
+On success, prints one line per skill: source path -> destination path (absolute).
+Errors go to stderr; exit status is non-zero on failure.
 `;
 
 function printHelp(): void {
   process.stdout.write(HELP);
+}
+
+function printSkillsHelp(): void {
+  process.stdout.write(SKILLS_HELP);
+}
+
+function runSkillsInstallCli(): void {
+  const destRoot = join(homedir(), ".agents", "skills");
+  const result = installBundledSkills({
+    packageRoot: awfPackageRootFromThisModule(),
+    destRoot,
+  });
+
+  if (!result.ok) {
+    if (result.kind === "preflight") {
+      process.stderr.write(`awf: ${formatSkillsInstallPreflightMessage(result.discovery)}\n`);
+    } else {
+      process.stderr.write(`awf: ${result.message}\n`);
+    }
+    process.exit(1);
+  }
+
+  for (const { sourcePath, destPath } of result.installed) {
+    process.stdout.write(`${resolve(sourcePath)} -> ${resolve(destPath)}\n`);
+  }
+  process.exit(0);
 }
 
 function parseRunArgs(args: string[]): { maxIterations: number } {
@@ -84,7 +131,10 @@ function assistantTextFromStreamEvent(o: StreamEvent): string {
  * message (each `text` extends the previous), not raw token deltas. Treat both that and plain
  * deltas by: emit only the suffix after the last snapshot, skip duplicate frames.
  */
-function mergeAssistantStreamChunk(prior: string, text: string): { next: string; deltaToPrint: string } {
+function mergeAssistantStreamChunk(
+  prior: string,
+  text: string,
+): { next: string; deltaToPrint: string } {
   if (!text || text === prior) {
     return { next: prior, deltaToPrint: "" };
   }
@@ -204,6 +254,27 @@ async function main(): Promise<void> {
   if (cmd === "-h" || cmd === "--help") {
     printHelp();
     process.exit(0);
+  }
+
+  if (cmd === "skills") {
+    const [sub, ...skillRest] = rest;
+    if (sub === undefined || sub === "-h" || sub === "--help") {
+      printSkillsHelp();
+      process.exit(0);
+    }
+    if (sub !== "install") {
+      process.stderr.write(`Unknown skills subcommand: ${sub}\n\n`);
+      printSkillsHelp();
+      process.exit(1);
+    }
+    if (skillRest.length > 0) {
+      process.stderr.write(
+        `awf: unexpected arguments after install: ${skillRest.join(" ")}\n`,
+      );
+      process.exit(1);
+    }
+    runSkillsInstallCli();
+    return;
   }
 
   if (cmd !== "run") {

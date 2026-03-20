@@ -11,8 +11,10 @@ You are executing **one task** from the workflow backlog in `tasks.json`.
 
 ## Completion
 
-When **every** task in `tasks.json` has `done: true`, respond with **only** this exact line (including tags) as part of your visible reply so the runner can stop:
+When **every** task in `tasks.json` has `done: true`, add **one final line** to your reply that contains **only** the completion marker below (tags included)—no spaces or other characters on that line before or after.
+
+The runner treats **any** occurrence of that exact marker anywhere in your reply as “all tasks complete” and stops the loop. Until you are truly finished, **never** type that marker in your narrative: not in explanations, negations, examples, markdown, or “meta” commentary (e.g. do not write “no completion marker” by spelling out the marker). If you need to refer to it early, say **the completion line** or **the all-done marker** without the literal tags.
+
+The completion line to emit when truly finished:
 
 `<promise>COMPLETE</promise>`
-
-Until then, do **not** emit that sigil.

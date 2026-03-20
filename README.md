@@ -88,7 +88,7 @@ awf run 25        # up to 25 iterations
 
 - Loads the workflow contract and validates **`./.awf/tasks.json`** (must exist, valid JSON array, matches schema).
 - Each iteration: rebuilds the agent prompt from the **bundled** instructions plus **full** `tasks.json` text; if **`.awf/prd.md`** exists, appends **only its path** relative to the project root.
-- Stops when accumulated assistant text includes a **whole line** that is exactly **`<promise>COMPLETE</promise>`** (after trimming), or when the iteration budget is exhausted.
+- Stops when accumulated assistant text contains **`<promise>COMPLETE</promise>`** or when the iteration budget is exhausted.
 - Exits **0** when the loop finishes normally; if the budget is hit without the sigil, it still exits **0** but prints that work may be incomplete. Non-zero if **`agent`** fails to start or exits with an error.
 
 Review diffs before committing; **`--force`** means the agent can change files without prompts.

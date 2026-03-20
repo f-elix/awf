@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import { readdir, rm, stat } from "node:fs/promises";
 import { homedir } from "node:os";
 import { createInterface } from "node:readline";
 import { join, resolve } from "node:path";
@@ -39,6 +40,7 @@ const HELP = `awf — agentic workflow CLI
 
 Usage:
   awf run [maxIterations]
+  awf reset
   awf skills install
 
   maxIterations  Optional positive integer (default: ${DEFAULT_MAX_ITERATIONS})
@@ -46,6 +48,10 @@ Usage:
 awf run: repeatedly invokes Cursor agent with --force so the agent may edit files
 in your working tree; review changes before committing. Workflow layout is defined
 only in the shipped spec/workflow.json (single contract).
+
+awf reset: removes all files and subdirectories inside the workflow directory
+(.awf by contract) under the current working directory; the directory itself
+is kept. No-op if that path is already absent.
 
 awf skills install: copies every skill from this package's skills/ tree into
 ~/.agents/skills/awf-<name>/ (see awf skills --help).
@@ -71,6 +77,37 @@ function printHelp(): void {
 
 function printSkillsHelp(): void {
   process.stdout.write(SKILLS_HELP);
+}
+
+function isEnoent(e: unknown): boolean {
+  return (
+    typeof e === "object" &&
+    e !== null &&
+    "code" in e &&
+    (e as NodeJS.ErrnoException).code === "ENOENT"
+  );
+}
+
+async function runResetCli(): Promise<void> {
+  const contract = loadWorkflowContract();
+  const awfRoot = workflowRootFromCwd(process.cwd(), contract);
+  let st;
+  try {
+    st = await stat(awfRoot);
+  } catch (e) {
+    if (isEnoent(e)) {
+      process.stdout.write(`awf: workflow directory ${awfRoot} was already absent\n`);
+      return;
+    }
+    throw e;
+  }
+  if (!st.isDirectory()) {
+    throw new Error(`workflow path is not a directory: ${awfRoot}`);
+  }
+  for (const ent of await readdir(awfRoot, { withFileTypes: true })) {
+    await rm(join(awfRoot, ent.name), { recursive: true, force: true });
+  }
+  process.stdout.write(`awf: emptied workflow directory ${awfRoot}\n`);
 }
 
 function runSkillsInstallCli(): void {
@@ -257,6 +294,15 @@ async function main(): Promise<void> {
     }
     runSkillsInstallCli();
     return;
+  }
+
+  if (cmd === "reset") {
+    if (rest.length > 0) {
+      process.stderr.write(`awf: unexpected arguments after reset: ${rest.join(" ")}\n`);
+      process.exit(1);
+    }
+    await runResetCli();
+    process.exit(0);
   }
 
   if (cmd !== "run") {

@@ -27,7 +27,6 @@ const AGENT_BASE_ARGS = [
   "--force",
   "--output-format",
   "stream-json",
-  "--stream-partial-output",
 ] as const;
 
 type StreamEvent = {
@@ -122,26 +121,12 @@ function assistantTextFromStreamEvent(o: StreamEvent): string {
   if (!Array.isArray(content) || content.length === 0) {
     return "";
   }
-  const text = content[0]?.text;
-  return typeof text === "string" ? text : "";
-}
-
-/**
- * Cursor's `--stream-partial-output` usually sends **growing full snapshots** of the assistant
- * message (each `text` extends the previous), not raw token deltas. Treat both that and plain
- * deltas by: emit only the suffix after the last snapshot, skip duplicate frames.
- */
-function mergeAssistantStreamChunk(
-  prior: string,
-  text: string,
-): { next: string; deltaToPrint: string } {
-  if (!text || text === prior) {
-    return { next: prior, deltaToPrint: "" };
+  const text = typeof content[0]?.text === "string" ? content[0]?.text : "";
+  const normalizedText = text.trim().replace(/\n/g, " ");
+  if (!normalizedText) {
+    return "";
   }
-  if (text.startsWith(prior)) {
-    return { next: text, deltaToPrint: text.slice(prior.length) };
-  }
-  return { next: prior + text, deltaToPrint: text };
+  return text;
 }
 
 /**
@@ -193,11 +178,8 @@ function runAgentStream(prompt: string): Promise<{
       if (!chunk) {
         return;
       }
-      const { next, deltaToPrint } = mergeAssistantStreamChunk(assistantSoFar, chunk);
-      assistantSoFar = next;
-      if (deltaToPrint) {
-        process.stdout.write(deltaToPrint);
-      }
+      assistantSoFar += chunk;
+      process.stdout.write(chunk);
     });
 
     child.on("close", (code) => {
@@ -213,6 +195,8 @@ async function runRalphLoop(
   maxIterations: number,
 ): Promise<void> {
   for (let i = 1; i <= maxIterations; i++) {
+    process.stdout.write(`=== Running iteration ${i} ===\n`);
+
     const prompt = buildAgentPrompt(workflowRoot, contract);
     const { accumulated, status, error } = await runAgentStream(prompt);
 
@@ -230,7 +214,7 @@ async function runRalphLoop(
     }
 
     if (accumulated.includes(COMPLETION_SIGIL)) {
-      process.stdout.write(`All tasks complete after ${i} iterations.\n`);
+      process.stdout.write(`\n=== All tasks complete after ${i} iterations. ===\n`);
       process.exit(0);
     }
   }
@@ -268,9 +252,7 @@ async function main(): Promise<void> {
       process.exit(1);
     }
     if (skillRest.length > 0) {
-      process.stderr.write(
-        `awf: unexpected arguments after install: ${skillRest.join(" ")}\n`,
-      );
+      process.stderr.write(`awf: unexpected arguments after install: ${skillRest.join(" ")}\n`);
       process.exit(1);
     }
     runSkillsInstallCli();

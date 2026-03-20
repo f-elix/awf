@@ -1,0 +1,34 @@
+{
+  "version": "0.1.0",
+  "document": "awf-workflow-contract",
+  "description": "Single normative contract for AWF: workflow directory layout under cwd and JSON Schema for tasks.json. Skills and the CLI MUST link here rather than restating layout (see PRD Further Notes).",
+  "workflowDirectory": {
+    "name": ".awf",
+    "resolution": "strict_cwd",
+    "resolutionNote": "The directory named `name` MUST exist as a child of the process current working directory. No upward directory walk.",
+    "entries": [
+      {
+        "relativePath": "tasks.json",
+        "required": true,
+        "description": "Backlog as a JSON array; each element MUST validate against the schema referenced by `tasksJsonSchema`."
+      },
+      {
+        "relativePath": "prd.md",
+        "required": false,
+        "description": "Optional product requirements document; when present the AWF CLI adds a path-only hint to the assembled agent prompt (not part of bundled prompt.md) so the agent can read the file on demand."
+      }
+    ]
+  },
+  "tasksJsonSchema": {
+    "$ref": "./tasks.schema.json"
+  },
+  "pinning": {
+    "purpose": "Pin skills and tooling to an immutable contract by URL at a release tag (PRD User Stories 16–18).",
+    "rawUrlPattern": "https://raw.githubusercontent.com/<owner>/<repo>/<release-tag>/spec/workflow.json",
+    "notes": [
+      "Replace `<owner>`, `<repo>`, and `<release-tag>` with your fork and semver tag.",
+      "JSON Schema `$ref` to `./tasks.schema.json` resolves relative to this file; fetch both from the same tag/path prefix.",
+      "The `version` field is contract semver; the git tag is the operational pin until a registry exists."
+    ]
+  }
+}

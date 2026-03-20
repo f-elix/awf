@@ -1,0 +1,72 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "awf-tasks.schema.json",
+  "title": "AWF tasks.json",
+  "description": "Schema for `.awf/tasks.json`: a top-level array of task objects produced by prd-to-tasks and consumed by the AWF CLI.",
+  "type": "array",
+  "items": {
+    "$ref": "#/definitions/task"
+  },
+  "definitions": {
+    "task": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "title",
+        "what_to_build",
+        "acceptance_criteria",
+        "blocked_by",
+        "user_stories_addressed",
+        "comments",
+        "commit_messages",
+        "done"
+      ],
+      "properties": {
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Short task name."
+        },
+        "what_to_build": {
+          "type": "string",
+          "description": "Implementation intent and scope for the agent."
+        },
+        "acceptance_criteria": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Checklist of verifiable outcomes."
+        },
+        "blocked_by": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "description": "Zero-based indices of tasks that must complete first."
+        },
+        "user_stories_addressed": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "description": "PRD user story numbers this task satisfies."
+        },
+        "comments": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Agent or human notes; append-only style entries as strings."
+        },
+        "commit_messages": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Suggested or recorded commit messages for this task."
+        },
+        "done": {
+          "type": "boolean",
+          "description": "Whether the task is complete. The CLI does not treat all-done as loop completion without the sigil."
+        }
+      }
+    }
+  }
+}

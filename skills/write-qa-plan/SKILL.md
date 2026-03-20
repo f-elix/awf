@@ -3,7 +3,7 @@ name: write-qa-plan
 description: Read .awf/tasks.json (and optional .awf/prd.md), infer intended behavior of the new implementation, and write .awf/qa.md as a step-by-step manual test plan in product/flow order—not task order. Use when the user wants a QA plan, test plan, manual test checklist, or pre-release verification.
 ---
 
-Normative workflow layout and `tasks.json` rules live in **`spec/workflow.json`** at the root of the `awf` repository. The workflow directory under the project cwd is **`.awf`**.
+Normative workflow layout and `tasks.json` rules live in **[`spec/workflow.json`](https://github.com/f-elix/awf/blob/main/spec/workflow.json)** in [**f-elix/awf**](https://github.com/f-elix/awf) (with schema via that file’s `$ref`). The workflow directory under the project cwd is **`.awf`**.
 
 # Write QA Plan
 

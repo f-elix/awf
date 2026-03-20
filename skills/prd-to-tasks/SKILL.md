@@ -3,7 +3,7 @@ name: prd-to-tasks
 description: Break a PRD into independently-grabbable tasks using tracer-bullet vertical slices. Use when user wants to convert a PRD to tasks, create implementation tickets, or break down a PRD into work items.
 ---
 
-Normative workflow layout and the **exact** `tasks.json` object shape (required fields, types) are defined in **`spec/workflow.json`** and **`spec/tasks.schema.json`** at the root of the `awf` repository. The workflow directory under the project cwd is **`.awf`**. Pin a release URL per `pinning.rawUrlPattern` in `workflow.json` when citing the contract outside this repo.
+Normative workflow layout and the **exact** `tasks.json` object shape (required fields, types) are defined in **[`spec/workflow.json`](https://github.com/f-elix/awf/blob/main/spec/workflow.json)** and **[`spec/tasks.schema.json`](https://github.com/f-elix/awf/blob/main/spec/tasks.schema.json)** in [**f-elix/awf**](https://github.com/f-elix/awf). The workflow directory under the project cwd is **`.awf`**.
 
 # PRD to Tasks
 
@@ -61,7 +61,7 @@ Create tasks in **dependency order** (blockers first): every dependency must app
 
 <task-template>
 
-Each task in **`.awf/tasks.json`** is one object with this shape (must satisfy **`spec/tasks.schema.json`**):
+Each task in **`.awf/tasks.json`** is one object with this shape (must satisfy **[`spec/tasks.schema.json`](https://github.com/f-elix/awf/blob/main/spec/tasks.schema.json)**):
 
 ```json
 {

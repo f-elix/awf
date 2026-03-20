@@ -3,7 +3,7 @@ name: write-a-prd
 description: Create a PRD through user interview, codebase exploration, and module design, then write it to .awf/prd.md. Use when user wants to write a PRD, create a product requirements document, or plan a new feature.
 ---
 
-Normative workflow layout and `tasks.json` rules live in **`spec/workflow.json`** at the root of the `awf` repository (and referenced JSON Schema). The workflow directory under the project cwd is **`.awf`** — not `awf` without the leading dot.
+Normative workflow layout and `tasks.json` rules live in **[`spec/workflow.json`](https://github.com/f-elix/awf/blob/main/spec/workflow.json)** in [**f-elix/awf**](https://github.com/f-elix/awf) (and referenced JSON Schema). The workflow directory under the project cwd is **`.awf`** — not `awf` without the leading dot.
 
 This skill will be invoked when the user wants to create a PRD. You may skip steps if you don't consider them necessary.
 

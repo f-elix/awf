@@ -19,10 +19,9 @@ const DEFAULT_MAX_ITERATIONS = 50;
 const COMPLETION_SIGIL = "<promise>COMPLETE</promise>";
 
 const AGENT_COMMAND = "agent";
+const AGENT_MODEL_DEFAULT = "auto";
 /** Prompt is always the last argument; streaming matches Cursor headless docs. */
-const AGENT_BASE_ARGS = [
-  "--model",
-  "composer-2",
+const AGENT_FIXED_ARGS = [
   "--print",
   "--trust",
   "--force",
@@ -39,11 +38,12 @@ type StreamEvent = {
 const HELP = `awf — agentic workflow CLI
 
 Usage:
-  awf run [maxIterations]
+  awf run [maxIterations] [--model <model>]
   awf reset
   awf skills install
 
   maxIterations  Optional positive integer (default: ${DEFAULT_MAX_ITERATIONS})
+  model          Optional agent model (default: ${AGENT_MODEL_DEFAULT})
 
 awf run: repeatedly invokes Cursor agent with --force so the agent may edit files
 in your working tree; review changes before committing. Workflow layout is defined
@@ -132,25 +132,52 @@ function runSkillsInstallCli(): void {
   process.exit(0);
 }
 
-function parseRunArgs(args: string[]): { maxIterations: number } {
-  if (args.length === 0) {
-    return { maxIterations: DEFAULT_MAX_ITERATIONS };
+function parseRunArgs(args: string[]): { maxIterations: number; model: string } {
+  let maxIterations = DEFAULT_MAX_ITERATIONS;
+  let model = AGENT_MODEL_DEFAULT;
+  let sawMaxIterations = false;
+  let sawModel = false;
+
+  for (let i = 0; i < args.length; i++) {
+    const raw = args[i];
+
+    if (raw === "--model") {
+      if (sawModel) {
+        throw new Error("Duplicate --model flag");
+      }
+      const value = args[i + 1];
+      if (value === undefined || value.startsWith("--")) {
+        throw new Error("Missing model value for --model");
+      }
+      model = value;
+      sawModel = true;
+      i++;
+      continue;
+    }
+
+    if (raw.startsWith("--")) {
+      throw new Error(`Unknown flag: ${raw}`);
+    }
+
+    if (sawMaxIterations) {
+      throw new Error(`Unexpected arguments after maxIterations: ${args.slice(i).join(" ")}`);
+    }
+
+    if (!/^\d+$/.test(raw)) {
+      throw new Error(`maxIterations must be a non-negative integer, got: ${JSON.stringify(raw)}`);
+    }
+    const n = Number(raw);
+    if (!Number.isSafeInteger(n) || n < 0) {
+      throw new Error(`maxIterations must be a non-negative integer, got: ${JSON.stringify(raw)}`);
+    }
+    if (n === 0) {
+      throw new Error("maxIterations must be at least 1");
+    }
+    maxIterations = n;
+    sawMaxIterations = true;
   }
-  if (args.length > 1) {
-    throw new Error(`Unexpected arguments after maxIterations: ${args.slice(1).join(" ")}`);
-  }
-  const raw = args[0];
-  if (!/^\d+$/.test(raw)) {
-    throw new Error(`maxIterations must be a non-negative integer, got: ${JSON.stringify(raw)}`);
-  }
-  const n = Number(raw);
-  if (!Number.isSafeInteger(n) || n < 0) {
-    throw new Error(`maxIterations must be a non-negative integer, got: ${JSON.stringify(raw)}`);
-  }
-  if (n === 0) {
-    throw new Error("maxIterations must be at least 1");
-  }
-  return { maxIterations: n };
+
+  return { maxIterations, model };
 }
 
 function assistantTextFromStreamEvent(o: StreamEvent): string {
@@ -169,13 +196,20 @@ function assistantTextFromStreamEvent(o: StreamEvent): string {
 /**
  * Runs `agent` with stream-json; forwards only assistant text to stdout (no tool/system dumps).
  */
-function runAgentStream(prompt: string): Promise<{
+function buildAgentArgs(model: string): string[] {
+  return ["--model", model, ...AGENT_FIXED_ARGS];
+}
+
+function runAgentStream(
+  prompt: string,
+  model: string,
+): Promise<{
   accumulated: string;
   status: number | null;
   error: Error | undefined;
 }> {
   return new Promise((resolve) => {
-    const child = spawn(AGENT_COMMAND, [...AGENT_BASE_ARGS, prompt], {
+    const child = spawn(AGENT_COMMAND, [...buildAgentArgs(model), prompt], {
       stdio: ["ignore", "pipe", "inherit"],
       env: process.env,
     });
@@ -230,12 +264,13 @@ async function runRalphLoop(
   workflowRoot: string,
   contract: WorkflowContract,
   maxIterations: number,
+  model: string,
 ): Promise<void> {
   for (let i = 1; i <= maxIterations; i++) {
     process.stdout.write(`=== Running iteration ${i} ===\n`);
 
     const prompt = buildAgentPrompt(workflowRoot, contract);
-    const { accumulated, status, error } = await runAgentStream(prompt);
+    const { accumulated, status, error } = await runAgentStream(prompt, model);
 
     if (!accumulated.endsWith("\n")) {
       process.stdout.write("\n");
@@ -312,8 +347,9 @@ async function main(): Promise<void> {
   }
 
   let maxIterations: number;
+  let model: string;
   try {
-    maxIterations = parseRunArgs(rest).maxIterations;
+    ({ maxIterations, model } = parseRunArgs(rest));
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     process.stderr.write(`awf: ${msg}\n`);
@@ -324,7 +360,7 @@ async function main(): Promise<void> {
   const workflowRoot = workflowRootFromCwd(process.cwd(), contract);
   assertWorkflowPreflight(workflowRoot, contract);
 
-  await runRalphLoop(workflowRoot, contract, maxIterations);
+  await runRalphLoop(workflowRoot, contract, maxIterations, model);
 }
 
 main().catch((e) => {

@@ -2,6 +2,8 @@
 
 You are executing **one task** from the workflow backlog in `.awf/tasks.json`.
 
+Use the `/caveman` skill for every response. Default to `/caveman ultra`. Only temporarily drop caveman style when safety warnings, irreversible-action confirmations, or clarity-critical step ordering require normal phrasing, then resume caveman immediately after.
+
 ## How to work
 
 1. Read the full `.awf/tasks.json` payload appended below this document (it may have been updated since the last iteration).
